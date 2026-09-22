@@ -41,6 +41,10 @@
 
 * { box-sizing: border-box; }
 
+/* Ensure the [hidden] attribute always wins over element display rules
+   (e.g. the back button, which is display:inline-flex when shown). */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
