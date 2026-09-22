@@ -1,0 +1,8 @@
+# secrets / generated config — never commit these
+.env
+js/config.js
+
+.DS_Store
+node_modules/
+.vercel
+*.log
