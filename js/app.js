@@ -151,7 +151,7 @@
   var CATEGORIES = [
     { key: 'verb', title: 'Verbs', emoji: '🏃', cats: ['verb'] },
     { key: 'noun', title: 'Nouns', emoji: '📦', cats: ['noun'] },
-    { key: 'adjective', title: 'Adjectives', emoji: '🌈', cats: ['adjective'] },
+    { key: 'adjective', title: 'Adjectives', emoji: '✨', cats: ['adjective'] },
     { key: 'phrase', title: 'Everyday phrases', emoji: '💬', cats: ['phrase'] },
     { key: 'color', title: 'Colours', emoji: '🎨', cats: ['color'] },
     { key: 'number', title: 'Numbers', emoji: '🔢', cats: ['number'] },
