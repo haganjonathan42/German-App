@@ -54,9 +54,16 @@
 
   S.isNew = function (id) { return !store[id]; };
 
-  // Order a list for review: due items first, weakest boxes first, new items early.
+  // Order a list for review: weakest boxes first, but shuffled within each box
+  // so the session doesn't always start on the same word.
   S.dueQueue = function (items) {
     var due = items.filter(function (it) { return S.isDue(it.id); });
+    for (var i = due.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = due[i]; due[i] = due[j]; due[j] = t;
+    }
+    // Array.prototype.sort is stable in modern browsers, so the random order
+    // is preserved among items sharing the same box.
     due.sort(function (a, b) { return S.get(a.id).box - S.get(b.id).box; });
     return due;
   };

@@ -9,6 +9,7 @@
     var items = ctx.items.slice();
     var hasConj = items.some(function (it) { return it.conjugation; });
     var order = items.map(function (_, i) { return i; });
+    A.shuffle(order); // start on a random word, in a fresh order, every time
     var pos = 0;
     var flipped = false;
     var deToEn = true; // front shows German by default
