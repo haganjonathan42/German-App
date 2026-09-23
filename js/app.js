@@ -195,9 +195,18 @@
       ));
     });
 
+    var all = SRS.stats(VOCAB);
+    var vocabTile = h('button', { class: 'tile', onclick: showVocabulary },
+      h('div', { class: 'tile__emoji' }, '📚'),
+      h('div', { class: 'tile__body' },
+        h('div', { class: 'tile__title' }, 'My Vocabulary'),
+        h('div', { class: 'tile__desc' }, 'The words you have learned')),
+      h('div', { class: 'tile__meta' }, h('span', { class: 'pill' + (all.mastered ? ' pill--done' : '') }, all.mastered + ' known')));
+
     mount(h('div', { class: 'stack' },
       h('h1', { class: 'screen-title' }, 'Guten Tag! 👋'),
       h('p', { class: 'screen-sub' }, 'Pick a set to study. Verbs are a great place to start.'),
+      vocabTile,
       grid,
       h('div', { class: 'spacer' }),
       h('button', { class: 'btn btn--ghost btn--block', onclick: confirmReset }, 'Reset all progress'),
@@ -237,6 +246,88 @@
       h('div', { class: 'spacer' }),
       h('div', { class: 'sr-note' }, 'How do you want to study?'),
       grid
+    ));
+  }
+
+  var vocabFilter = 'known'; // 'known' | 'learning' | 'all'
+  var vocabQuery = '';
+  function showVocabulary() {
+    currentRefresh = showVocabulary;
+    setBack(showHome);
+    scrollTop();
+
+    var studied = VOCAB.filter(function (e) { return !SRS.isNew(e.id); });
+    var known = studied.filter(function (e) { return SRS.isMastered(e.id); });
+    var learning = studied.filter(function (e) { return !SRS.isMastered(e.id); });
+
+    function chip(label, key, count) {
+      var b = h('button', { class: 'chip' + (vocabFilter === key ? ' chip--on' : '') }, label + ' (' + count + ')');
+      b.onclick = function () { vocabFilter = key; showVocabulary(); };
+      return b;
+    }
+
+    var source = vocabFilter === 'known' ? known : vocabFilter === 'learning' ? learning : studied;
+    var q = vocabQuery.toLowerCase();
+    var shown = source.filter(function (e) {
+      if (!q) return true;
+      return e.germanDisplay.toLowerCase().indexOf(q) !== -1 || e.english.toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) { return a.germanDisplay.localeCompare(b.germanDisplay, 'de'); });
+
+    var list = h('div', { class: 'list' });
+    shown.forEach(function (e) {
+      var box = SRS.get(e.id).box;
+      var row = h('div', { class: 'row' });
+      row.appendChild(germanNode(e, 'row__de'));
+      row.appendChild(h('div', { class: 'row__en' }, e.english));
+      row.appendChild(h('div', { class: 'row__badge' },
+        SRS.isMastered(e.id)
+          ? h('span', { class: 'pill pill--done' }, '✓ known')
+          : h('span', { class: 'pill' }, 'box ' + box + '/5')));
+      list.appendChild(row);
+    });
+
+    var empty = null;
+    if (studied.length === 0) {
+      empty = h('p', { class: 'muted center' }, 'You have not studied any words yet. Open a set and start with Flashcards or Quiz — words you get right will appear here.');
+    } else if (shown.length === 0) {
+      empty = h('p', { class: 'muted center' }, vocabQuery ? ('No words match “' + vocabQuery + '.”') : 'Nothing here yet in this filter.');
+    }
+
+    var search = h('input', { class: 'search', type: 'search', placeholder: 'Search your words…', value: vocabQuery });
+    search.addEventListener('input', function () { vocabQuery = search.value; refreshList(); });
+    function refreshList() {
+      var q2 = vocabQuery.toLowerCase();
+      var src = vocabFilter === 'known' ? known : vocabFilter === 'learning' ? learning : studied;
+      var vis = src.filter(function (e) {
+        if (!q2) return true;
+        return e.germanDisplay.toLowerCase().indexOf(q2) !== -1 || e.english.toLowerCase().indexOf(q2) !== -1;
+      }).sort(function (a, b) { return a.germanDisplay.localeCompare(b.germanDisplay, 'de'); });
+      var nl = h('div', { class: 'list', id: 'vocabList' });
+      vis.forEach(function (e) {
+        var box = SRS.get(e.id).box;
+        var row = h('div', { class: 'row' });
+        row.appendChild(germanNode(e, 'row__de'));
+        row.appendChild(h('div', { class: 'row__en' }, e.english));
+        row.appendChild(h('div', { class: 'row__badge' }, SRS.isMastered(e.id)
+          ? h('span', { class: 'pill pill--done' }, '✓ known')
+          : h('span', { class: 'pill' }, 'box ' + box + '/5')));
+        nl.appendChild(row);
+      });
+      if (vis.length === 0) nl.appendChild(h('p', { class: 'muted center' }, vocabQuery ? ('No words match “' + vocabQuery + '.”') : 'Nothing here yet in this filter.'));
+      var cur = document.getElementById('vocabList');
+      if (cur) cur.replaceWith(nl);
+    }
+    list.id = 'vocabList';
+
+    mount(h('div', { class: 'stack' },
+      h('h1', { class: 'screen-title' }, '📚 My Vocabulary'),
+      h('p', { class: 'screen-sub' }, known.length + ' known · ' + learning.length + ' still learning · ' + VOCAB.length + ' total'),
+      h('div', { class: 'chips' },
+        chip('✓ Known', 'known', known.length),
+        chip('📖 Learning', 'learning', learning.length),
+        chip('All studied', 'all', studied.length)),
+      search,
+      empty || list
     ));
   }
 
