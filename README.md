@@ -40,6 +40,10 @@ computer's address instead, e.g. `http://192.168.1.20:8000` (same Wi‑Fi).
   screen and while you study, in Flashcards, Smart Review, and Browse.
 - Nouns always show the colour‑coded **article** (der = blue, die = pink,
   das = green) since that is part of the word itself.
+- **🔊 Pronunciation.** Tap the speaker next to any word or example sentence to
+  hear it spoken in German. Uses your device's built‑in text‑to‑speech, so it needs
+  no downloads and works offline. (If a browser has no German voice it falls back to
+  the default voice; the button hides on browsers with no speech support.)
 
 ## Your progress
 

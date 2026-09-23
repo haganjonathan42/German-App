@@ -31,14 +31,48 @@
   }
   function scrollTop() { window.scrollTo(0, 0); }
 
+  /* ---------- speech (pronunciation) ---------- */
+  var speechOK = (typeof window !== 'undefined') && ('speechSynthesis' in window) &&
+    (typeof window.SpeechSynthesisUtterance !== 'undefined');
+  var voices = [];
+  function loadVoices() { try { voices = window.speechSynthesis.getVoices() || []; } catch (e) {} }
+  if (speechOK) {
+    loadVoices();
+    try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {}
+  }
+  function speak(text) {
+    if (!speechOK || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new window.SpeechSynthesisUtterance(String(text));
+      u.lang = 'de-DE';
+      u.rate = 0.9;
+      if (!voices.length) loadVoices();
+      var v = voices.filter(function (x) { return /^de(\b|[-_])/i.test(x.lang); })[0];
+      if (v) u.voice = v;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  // A small 🔊 button that speaks `text`; stops click from bubbling (e.g. card flip).
+  function speakerButton(text, cls) {
+    var b = h('button', { class: 'spk' + (cls ? ' ' + cls : ''), type: 'button',
+      'aria-label': 'Hear pronunciation', title: 'Hear it' }, '🔊');
+    b.onclick = function (ev) { ev.stopPropagation(); speak(text); };
+    return b;
+  }
+
   /* ---------- reusable UI pieces ---------- */
   function articleNode(a) { return h('span', { class: 'art-' + a }, a); }
 
   function germanNode(e, cls) {
-    if (e.article) {
-      return h('div', { class: cls }, articleNode(e.article), ' ', e.noun);
+    var node = e.article
+      ? h('div', { class: cls }, articleNode(e.article), ' ', e.noun)
+      : h('div', { class: cls }, e.germanDisplay);
+    if (speechOK) {
+      node.appendChild(document.createTextNode(' '));
+      node.appendChild(speakerButton(e.speakText || e.germanDisplay));
     }
-    return h('div', { class: cls }, e.germanDisplay);
+    return node;
   }
 
   var CONJ_LABELS = [['ich', 'ich'], ['du', 'du'], ['er', 'er / sie / es'], ['wir', 'wir'], ['ihr', 'ihr'], ['sie', 'sie / Sie']];
@@ -56,9 +90,11 @@
   function examplesNode(examples, cls) {
     var wrap = h('div', { class: cls || 'card__example' });
     examples.forEach(function (ex) {
-      wrap.appendChild(h('div', { class: 'ex' },
+      var line = h('div', { class: 'ex' },
         h('span', { class: 'de' }, ex.de + ' '),
-        h('span', { class: 'en' }, '— ' + ex.en)));
+        h('span', { class: 'en' }, '— ' + ex.en));
+      if (speechOK) line.appendChild(speakerButton(ex.de, 'spk--sm'));
+      wrap.appendChild(line);
     });
     return wrap;
   }
@@ -110,6 +146,7 @@
   window.App = {
     h: h, mount: mount, shuffle: shuffle, scrollTop: scrollTop,
     germanNode: germanNode, articleNode: articleNode, examplesNode: examplesNode,
+    speak: speak, speakerButton: speakerButton, speechOK: speechOK,
     conjugationTable: conjugationTable, progressBar: progressBar, statRow: statRow,
     home: showHome, setBack: setBack,
     settings: Settings, displayToggles: displayToggles
@@ -144,6 +181,9 @@
     else if (cat === 'adjective' || cat === 'color') e.examples = G.adjExamples(raw.de, raw.en);
     else if (cat === 'time' && e.article) e.examples = G.nounExamples(e.article, e.noun, raw.en);
     else e.examples = [];
+
+    // Clean, speakable German (article + noun for nouns; first option otherwise).
+    e.speakText = e.article ? (e.article + ' ' + e.noun) : e.germanDisplay.split('/')[0].trim();
 
     e.id = makeId(prefix, raw.en + '-' + raw.de);
     VOCAB.push(e);
