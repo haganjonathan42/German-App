@@ -203,6 +203,80 @@
     };
   };
 
+  // ---- Multiple, varied example sentences (3–5 per word) ----
+  // Uses different subjects (ich / du / wir / sie …) and sentence shapes so
+  // learners see the word in context beyond a single "Ich …" sentence.
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  // Clean an English gloss: first option, drop parenthetical notes, lower-case.
+  function cleanEn(s) { return String(s || '').split('/')[0].replace(/\(.*?\)/g, '').trim().toLowerCase(); }
+
+  // Verbs: an authored natural sentence (if we have one) followed by the verb
+  // conjugated across several persons. Persons chosen (ich/du/wir/sie-plural)
+  // all take the base English verb, so the English stays correct too.
+  G.verbExamples = function (raw, english) {
+    var out = [];
+    var inf = firstOption(raw).toLowerCase();
+    var key = inf.replace(/^sich\s+/i, '');
+    if (VERB_EXAMPLES[key]) out.push(VERB_EXAMPLES[key]);
+
+    var eng = cleanEn(english);
+    var c = G.conjugate(raw);
+    if (c) {
+      var multi = /\s/.test(c.ich); // separable/reflexive → merged form has a space
+      if (multi) {
+        // Word order already correct in the merged form; don't add adverbs.
+        out.push({ de: 'Ich ' + c.ich + '.', en: 'I ' + eng + '.' });
+        out.push({ de: 'Du ' + c.du + '.', en: 'You ' + eng + '.' });
+        out.push({ de: 'Wir ' + c.wir + '.', en: 'We ' + eng + '.' });
+        out.push({ de: 'Sie ' + c.sie + '.', en: 'They ' + eng + '.' });
+      } else {
+        out.push({ de: 'Ich ' + c.ich + ' gern.', en: 'I like to ' + eng + '.' });
+        out.push({ de: 'Du ' + c.du + ' oft.', en: 'You ' + eng + ' often.' });
+        out.push({ de: 'Wir ' + c.wir + ' auch.', en: 'We ' + eng + ' too.' });
+        out.push({ de: 'Sie ' + c.sie + ' viel.', en: 'They ' + eng + ' a lot.' });
+      }
+    } else {
+      // Can't conjugate (e.g. multiword "erfolg haben") — vary the subject instead.
+      out.push({ de: 'Ich möchte ' + inf + '.', en: 'I would like to ' + eng + '.' });
+      out.push({ de: 'Wir möchten ' + inf + '.', en: 'We would like to ' + eng + '.' });
+      out.push({ de: 'Willst du ' + inf + '?', en: 'Do you want to ' + eng + '?' });
+    }
+    return out;
+  };
+
+  // Nouns: statement, question, accusative, and subject-position — all correct
+  // for a singular noun (accusative changes only der → den).
+  G.nounExamples = function (article, noun, english) {
+    var eng = cleanEn(english);
+    if (!article) {
+      return [
+        { de: 'Das ist ' + noun + '.', en: 'That is ' + eng + '.' },
+        { de: 'Wo ist ' + noun + '?', en: 'Where is ' + eng + '?' }
+      ];
+    }
+    var acc = article === 'der' ? 'den' : article;
+    return [
+      { de: 'Das ist ' + article + ' ' + noun + '.', en: 'That is the ' + eng + '.' },
+      { de: 'Wo ist ' + article + ' ' + noun + '?', en: 'Where is the ' + eng + '?' },
+      { de: 'Ich sehe ' + acc + ' ' + noun + '.', en: 'I see the ' + eng + '.' },
+      { de: cap(article) + ' ' + noun + ' ist hier.', en: 'The ' + eng + ' is here.' }
+    ];
+  };
+
+  // Adjectives: predicative position (after "sein"), so no endings change and
+  // every sentence stays grammatical. Varied subjects for interest.
+  G.adjExamples = function (raw, english) {
+    var adj = firstOption(raw).toLowerCase();
+    var eng = cleanEn(english);
+    return [
+      { de: 'Das Auto ist ' + adj + '.', en: 'The car is ' + eng + '.' },
+      { de: 'Sie ist sehr ' + adj + '.', en: 'She is very ' + eng + '.' },
+      { de: 'Bist du ' + adj + '?', en: 'Are you ' + eng + '?' },
+      { de: 'Wir sind alle ' + adj + '.', en: 'We are all ' + eng + '.' }
+    ];
+  };
+
   // slug helper for ids
   G.slug = function (s) {
     return String(s).toLowerCase()

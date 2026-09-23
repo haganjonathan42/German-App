@@ -181,9 +181,14 @@ body {
 .card__hint { position: absolute; top: 12px; right: 14px; color: var(--muted); font-size: 12px; }
 .card__word { font-size: 34px; font-weight: 800; margin: 6px 0; }
 .card__sub { color: var(--muted); font-size: 16px; }
-.card__example { margin-top: 16px; font-size: 15px; }
+.card__example { margin-top: 16px; font-size: 15px; text-align: left; width: 100%; }
 .card__example .de { font-weight: 600; }
 .card__example .en { color: var(--muted); }
+.card__example .ex { margin-top: 8px; }
+.card__example .ex:first-child { margin-top: 0; }
+.row__ex .ex { margin-top: 4px; }
+.row__ex .ex .de { color: var(--text); font-weight: 600; }
+.row__ex .ex .en { color: var(--muted); }
 .card__section { margin-top: 14px; width: 100%; }
 
 /* conjugation table */

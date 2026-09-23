@@ -65,10 +65,8 @@
           card.appendChild(A.germanNode(e, 'card__word'));
           card.appendChild(A.h('div', { class: 'card__sub' }, e.english));
         }
-        if (e.example && A.settings.get('showExample')) {
-          card.appendChild(A.h('div', { class: 'card__example' },
-            A.h('div', { class: 'de' }, e.example.de),
-            A.h('div', { class: 'en' }, e.example.en)));
+        if (e.examples && e.examples.length && A.settings.get('showExample')) {
+          card.appendChild(A.examplesNode(e.examples));
         }
         if (e.conjugation && A.settings.get('showConjugation')) card.appendChild(A.conjugationTable(e.conjugation));
         if (e.article) card.appendChild(A.h('div', { class: 'card__section sr-note' },

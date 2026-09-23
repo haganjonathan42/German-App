@@ -167,17 +167,25 @@
     }
 
     // ---- helpers ----
+    var padPool = ctx.padPool ? ctx.padPool.slice() : null;
     function buildOptions(e, deToEn) {
       var correct = deToEn ? cleanEn(e.english) : e.germanDisplay;
-      var others = pool.filter(function (it) { return it.id !== e.id; });
-      A.shuffle(others);
       var set = [correct], seen = {}; seen[correct] = 1;
-      for (var k = 0; k < others.length && set.length < 4; k++) {
-        var t = deToEn ? cleanEn(others[k].english) : others[k].germanDisplay;
-        if (!seen[t]) { seen[t] = 1; set.push(t); }
-      }
+      // Prefer distractors from the primary pool (e.g. your learning words),
+      // then top up from padPool (the whole category) if we still need 4.
+      addFrom(pool);
+      if (set.length < 4 && padPool) addFrom(padPool);
       A.shuffle(set);
       return set;
+
+      function addFrom(list) {
+        var others = list.filter(function (it) { return it.id !== e.id; });
+        A.shuffle(others);
+        for (var k = 0; k < others.length && set.length < 4; k++) {
+          var t = deToEn ? cleanEn(others[k].english) : others[k].germanDisplay;
+          if (!seen[t]) { seen[t] = 1; set.push(t); }
+        }
+      }
     }
     function lockOptions(box, answerText) {
       Array.prototype.forEach.call(box.children, function (b) {

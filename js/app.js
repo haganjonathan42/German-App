@@ -52,6 +52,17 @@
     return wrap;
   }
 
+  // Renders a list of example sentences (German + English gloss).
+  function examplesNode(examples, cls) {
+    var wrap = h('div', { class: cls || 'card__example' });
+    examples.forEach(function (ex) {
+      wrap.appendChild(h('div', { class: 'ex' },
+        h('span', { class: 'de' }, ex.de + ' '),
+        h('span', { class: 'en' }, '— ' + ex.en)));
+    });
+    return wrap;
+  }
+
   function progressBar(frac) {
     var pct = Math.max(0, Math.min(1, frac)) * 100;
     return h('div', { class: 'bar' }, h('i', { style: 'width:' + pct + '%' }));
@@ -98,7 +109,7 @@
   /* ---------- expose helpers to modes ---------- */
   window.App = {
     h: h, mount: mount, shuffle: shuffle, scrollTop: scrollTop,
-    germanNode: germanNode, articleNode: articleNode,
+    germanNode: germanNode, articleNode: articleNode, examplesNode: examplesNode,
     conjugationTable: conjugationTable, progressBar: progressBar, statRow: statRow,
     home: showHome, setBack: setBack,
     settings: Settings, displayToggles: displayToggles
@@ -127,12 +138,12 @@
 
     if (cat === 'verb') e.conjugation = G.conjugate(raw.de);
 
-    if (raw.ex) e.example = raw.ex;
-    else if (cat === 'verb') e.example = G.verbExample(raw.de, raw.en);
-    else if (cat === 'noun') e.example = G.nounExample(e.article, e.noun, raw.en);
-    else if (cat === 'adjective' || cat === 'color') e.example = G.adjExample(raw.de, raw.en);
-    else if (cat === 'time' && e.article) e.example = G.nounExample(e.article, e.noun, raw.en);
-    else e.example = null;
+    if (raw.ex) e.examples = [raw.ex];
+    else if (cat === 'verb') e.examples = G.verbExamples(raw.de, raw.en);
+    else if (cat === 'noun') e.examples = G.nounExamples(e.article, e.noun, raw.en);
+    else if (cat === 'adjective' || cat === 'color') e.examples = G.adjExamples(raw.de, raw.en);
+    else if (cat === 'time' && e.article) e.examples = G.nounExamples(e.article, e.noun, raw.en);
+    else e.examples = [];
 
     e.id = makeId(prefix, raw.en + '-' + raw.de);
     VOCAB.push(e);
@@ -365,7 +376,8 @@
     }
     window.Modes.quiz({
       items: learning,
-      pool: items,
+      pool: learning,   // wrong options are also your learning words (harder)
+      padPool: items,   // ...topped up from the whole category only if needed
       round: 10,
       title: cat.title,
       titleSuffix: 'Reinforce',
