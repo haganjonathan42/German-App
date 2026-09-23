@@ -40,16 +40,42 @@
     loadVoices();
     try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {}
   }
+  function germanVoices() {
+    if (!voices.length) loadVoices();
+    return voices.filter(function (v) { return /^de(\b|[-_])/i.test(v.lang || ''); });
+  }
+  // Rank German voices so the best-sounding one is chosen automatically.
+  function bestGermanVoice() {
+    var de = germanVoices().slice();
+    de.sort(function (a, b) { return voiceScore(b) - voiceScore(a); });
+    return de[0];
+    function voiceScore(v) {
+      var s = 0, n = (v.name || '').toLowerCase();
+      if (v.localService === false) s += 3;                 // network/enhanced
+      if (/google/.test(n)) s += 3;                          // Android high quality
+      if (/(natural|enhanced|premium|neural|siri)/.test(n)) s += 2;
+      if (/(anna|petra|markus|helena|viktor|yannick)/.test(n)) s += 1; // Apple de voices
+      return s;
+    }
+  }
+  function chosenVoice() {
+    var wanted = settings && settings.speechVoice;
+    if (wanted) {
+      var match = voices.filter(function (v) { return v.voiceURI === wanted || v.name === wanted; })[0];
+      if (match) return match;
+    }
+    return bestGermanVoice();
+  }
   function speak(text) {
     if (!speechOK || !text) return;
     try {
       window.speechSynthesis.cancel();
       var u = new window.SpeechSynthesisUtterance(String(text));
-      u.lang = 'de-DE';
-      u.rate = 0.9;
-      if (!voices.length) loadVoices();
-      var v = voices.filter(function (x) { return /^de(\b|[-_])/i.test(x.lang); })[0];
-      if (v) u.voice = v;
+      u.volume = 1;
+      u.pitch = 1;
+      u.rate = (settings && settings.speechRate) || 0.95;
+      var v = chosenVoice();
+      if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'de-DE'; }
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
@@ -114,7 +140,7 @@
      Kept minimal by default so words can be learnt alone; the user
      turns Sentence / Conjugation on when they want them. Persisted. */
   var SET_KEY = 'gt_settings_v1';
-  var DEFAULT_SETTINGS = { showExample: false, showConjugation: false };
+  var DEFAULT_SETTINGS = { showExample: false, showConjugation: false, speechRate: 0.95, speechVoice: '' };
   var settings = loadSettings();
   function loadSettings() {
     try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(SET_KEY)) || {}); }
@@ -125,6 +151,7 @@
   var Settings = {
     get: function (k) { return !!settings[k]; },
     set: function (k, v) { settings[k] = !!v; saveSettings(); },
+    setRaw: function (k, v) { settings[k] = v; saveSettings(); },
     toggle: function (k) { settings[k] = !settings[k]; saveSettings(); return settings[k]; }
   };
 
@@ -262,6 +289,7 @@
       h('div', { class: 'spacer' }),
       vocabTile,
       h('div', { class: 'spacer' }),
+      speechOK ? h('button', { class: 'btn btn--ghost btn--block', onclick: showAudioSettings }, '🔊 Audio settings') : null,
       h('button', { class: 'btn btn--ghost btn--block', onclick: confirmReset }, 'Reset all progress'),
       h('p', { class: 'sr-note center' }, 'Your progress is saved on this device only.')
     ));
@@ -382,6 +410,64 @@
         chip('All studied', 'all', studied.length)),
       search,
       empty || list
+    ));
+  }
+
+  function showAudioSettings() {
+    currentRefresh = showAudioSettings;
+    setBack(showHome);
+    scrollTop();
+
+    if (!speechOK) {
+      mount(h('div', { class: 'stack center' },
+        h('div', { class: 'big-emoji' }, '🔇'),
+        h('h2', { class: 'screen-title' }, 'Audio not available'),
+        h('p', { class: 'muted' }, 'This browser has no built-in text-to-speech. Try a recent version of Chrome, Edge, or Safari.'),
+        h('button', { class: 'btn btn--primary', onclick: showHome }, 'Back')));
+      return;
+    }
+
+    loadVoices();
+    var deVoices = germanVoices();
+
+    // speed chips
+    function speedChip(label, rate) {
+      var on = Math.abs((settings.speechRate || 0.95) - rate) < 0.01;
+      var b = h('button', { class: 'chip' + (on ? ' chip--on' : '') }, label);
+      b.onclick = function () { Settings.setRaw('speechRate', rate); showAudioSettings(); };
+      return b;
+    }
+
+    // voice picker
+    var sel = h('select', { class: 'search' });
+    sel.appendChild(h('option', { value: '' }, 'Automatic (best German voice)'));
+    deVoices.forEach(function (v) {
+      sel.appendChild(h('option', { value: v.voiceURI }, v.name + ' (' + v.lang + ')'));
+    });
+    sel.value = settings.speechVoice || '';
+    sel.addEventListener('change', function () {
+      Settings.setRaw('speechVoice', sel.value);
+      speak('Guten Tag! Ich lerne Deutsch.');
+    });
+
+    var voiceArea = deVoices.length
+      ? h('div', { class: 'stack' }, h('div', { class: 'sr-note' }, 'German voice'), sel)
+      : h('p', { class: 'sr-note' }, 'No German voice detected on this device yet. Tap “Test” once, then reopen this screen — or install a German voice (see tips below).');
+
+    mount(h('div', { class: 'stack' },
+      h('h1', { class: 'screen-title' }, '🔊 Audio settings'),
+      h('p', { class: 'screen-sub' }, 'Choose the voice and speed for pronunciation.'),
+      h('div', { class: 'stack' }, h('div', { class: 'sr-note' }, 'Speed'),
+        h('div', { class: 'chips' }, speedChip('Slow', 0.7), speedChip('Normal', 0.95), speedChip('Fast', 1.15))),
+      voiceArea,
+      h('button', { class: 'btn btn--primary btn--block', onclick: function () { speak('Guten Tag! Ich lerne gern Deutsch.'); } }, '▶︎ Test voice'),
+      h('button', { class: 'btn btn--ghost btn--block', onclick: showAudioSettings }, '↻ Refresh voice list'),
+      h('div', { class: 'spacer' }),
+      h('div', { class: 'sr-note' },
+        'Tip: for a more natural voice, install a better German voice in your device settings — ' +
+        'iPhone: Settings → Accessibility → Spoken Content → Voices → German (choose an “Enhanced/Premium” one). ' +
+        'Android: Settings → System → Languages → Text-to-speech → install German / pick Google TTS. ' +
+        'On iPhone, also turn off silent mode to hear it.')
     ));
   }
 
