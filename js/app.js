@@ -164,6 +164,7 @@
     { key: 'flashcards', title: 'Flashcards', emoji: '🃏', desc: 'Flip cards and mark what you know' },
     { key: 'quiz', title: 'Quiz', emoji: '❓', desc: 'Multiple choice, typing, or der/die/das' },
     { key: 'review', title: 'Smart Review', emoji: '🧠', desc: 'Spaced repetition — practises weak words' },
+    { key: 'reinforce', title: 'Reinforce', emoji: '🔁', desc: "Quiz your ‘still learning’ words (random 10)" },
     { key: 'browse', title: 'Browse list', emoji: '📖', desc: 'Read and search all the words' }
   ];
 
@@ -227,6 +228,7 @@
     MODES.forEach(function (m) {
       var meta = '';
       if (m.key === 'review') meta = st.due + ' due';
+      else if (m.key === 'reinforce') meta = st.learning + ' learning';
       grid.appendChild(h('button', { class: 'tile', onclick: function () { launch(m.key, c, items); } },
         h('div', { class: 'tile__emoji' }, m.emoji),
         h('div', { class: 'tile__body' },
@@ -333,6 +335,7 @@
   }
 
   function launch(modeKey, cat, items) {
+    if (modeKey === 'reinforce') return launchReinforce(cat, items);
     var ctx = {
       items: items,
       title: cat.title,
@@ -341,6 +344,36 @@
     setBack(ctx.onExit);
     scrollTop();
     window.Modes[modeKey](ctx);
+  }
+
+  // Reinforce: quiz just the "still learning" words (studied, not mastered),
+  // a random 10, with right/wrong feedback. Options are drawn from the whole
+  // category so questions still have 4 choices even if few words are weak.
+  function launchReinforce(cat, items) {
+    var onExit = function () { showModes(cat.key); };
+    setBack(onExit);
+    scrollTop();
+    var learning = items.filter(function (e) { return !SRS.isNew(e.id) && !SRS.isMastered(e.id); });
+    if (learning.length === 0) {
+      mount(h('div', { class: 'stack center' },
+        h('div', { class: 'big-emoji' }, '🔁'),
+        h('h2', { class: 'screen-title' }, 'Nothing to reinforce yet'),
+        h('p', { class: 'muted' }, 'Words you mark “Still learning” (or get wrong) in ' + cat.title +
+          ' show up here. Study a few in Flashcards or Quiz first, then come back to drill them.'),
+        h('button', { class: 'btn btn--primary', onclick: onExit }, 'Back to modes')));
+      return;
+    }
+    window.Modes.quiz({
+      items: learning,
+      pool: items,
+      round: 10,
+      title: cat.title,
+      titleSuffix: 'Reinforce',
+      subtitle: 'Practising ' + learning.length + ' word' + (learning.length === 1 ? '' : 's') +
+        ' you’re still learning. Get them right to move them toward “known”.',
+      startLabel: 'Start review',
+      onExit: onExit
+    });
   }
 
   function confirmReset() {

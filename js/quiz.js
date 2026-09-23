@@ -4,12 +4,19 @@
   'use strict';
   window.Modes = window.Modes || {};
 
-  var ROUND = 12; // questions per round (or fewer if the set is small)
+  var DEFAULT_ROUND = 12; // questions per round (or fewer if the set is small)
 
   window.Modes.quiz = function (ctx) {
     var A = window.App;
-    var pool = ctx.items.slice();
-    var hasNouns = pool.some(function (it) { return it.article; });
+    // Words to test come from ctx.items; distractor options are drawn from
+    // ctx.pool if given (lets "Reinforce" test a small subset while still
+    // building 4-option questions from the whole category).
+    var testItems = ctx.items.slice();
+    var pool = (ctx.pool || ctx.items).slice();
+    var ROUND = ctx.round || DEFAULT_ROUND;
+    var subtitle = ctx.subtitle || 'Choose how you want to be tested.';
+    var titleSuffix = ctx.titleSuffix || 'Quiz';
+    var hasNouns = testItems.some(function (it) { return it.article; });
 
     var style = 'mc';      // 'mc' | 'type' | 'article'
     var deToEn = true;     // for mc/type
@@ -32,20 +39,20 @@
       }
 
       A.mount(A.h('div', { class: 'stack' },
-        A.h('h2', { class: 'screen-title' }, ctx.title + ' — Quiz'),
-        A.h('p', { class: 'screen-sub' }, 'Choose how you want to be tested.'),
+        A.h('h2', { class: 'screen-title' }, ctx.title + ' — ' + titleSuffix),
+        A.h('p', { class: 'screen-sub' }, subtitle),
         A.h('div', { class: 'stack' }, A.h('div', { class: 'sr-note' }, 'Question type'), styleChips),
         style === 'article' ? A.h('div', {}) :
           A.h('div', { class: 'stack' }, A.h('div', { class: 'sr-note' }, 'Direction'), dirChips),
         A.h('div', { class: 'spacer' }),
-        A.h('button', { class: 'btn btn--primary btn--block', onclick: run }, 'Start quiz')
+        A.h('button', { class: 'btn btn--primary btn--block', onclick: run }, ctx.startLabel || 'Start quiz')
       ));
     }
 
     function run() {
       var queue;
-      if (style === 'article') queue = pool.filter(function (it) { return it.article; });
-      else queue = pool.slice();
+      if (style === 'article') queue = testItems.filter(function (it) { return it.article; });
+      else queue = testItems.slice();
       A.shuffle(queue);
       queue = queue.slice(0, Math.min(ROUND, queue.length));
 
