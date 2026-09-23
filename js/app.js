@@ -333,6 +333,7 @@
 
   var vocabFilter = 'known'; // 'known' | 'learning' | 'all'
   var vocabQuery = '';
+  var audioShowAll = false;  // Audio settings: list all voices, not only German
   function showVocabulary() {
     currentRefresh = showVocabulary;
     setBack(showHome);
@@ -428,7 +429,18 @@
     }
 
     loadVoices();
+    // Keep the list fresh: browsers often populate/update voices late or after
+    // a newly-installed voice becomes visible. Re-render when that happens.
+    try {
+      window.speechSynthesis.onvoiceschanged = function () {
+        loadVoices();
+        if (currentRefresh === showAudioSettings) showAudioSettings();
+      };
+    } catch (e) {}
+
     var deVoices = germanVoices();
+    var allV = voices.slice();
+    var listV = audioShowAll ? allV : deVoices;
 
     // speed chips
     function speedChip(label, rate) {
@@ -441,7 +453,7 @@
     // voice picker
     var sel = h('select', { class: 'search' });
     sel.appendChild(h('option', { value: '' }, 'Automatic (best German voice)'));
-    deVoices.forEach(function (v) {
+    listV.forEach(function (v) {
       sel.appendChild(h('option', { value: v.voiceURI }, v.name + ' (' + v.lang + ')'));
     });
     sel.value = settings.speechVoice || '';
@@ -450,9 +462,16 @@
       speak('Guten Tag! Ich lerne Deutsch.');
     });
 
-    var voiceArea = deVoices.length
-      ? h('div', { class: 'stack' }, h('div', { class: 'sr-note' }, 'German voice'), sel)
-      : h('p', { class: 'sr-note' }, 'No German voice detected on this device yet. Tap “Test” once, then reopen this screen — or install a German voice (see tips below).');
+    var showAllChip = h('button', { class: 'chip' + (audioShowAll ? ' chip--on' : '') }, 'Show all voices');
+    showAllChip.onclick = function () { audioShowAll = !audioShowAll; showAudioSettings(); };
+
+    var voiceArea = h('div', { class: 'stack' },
+      h('div', { class: 'sr-note' }, 'Voice — this browser can see ' + deVoices.length +
+        ' German voice' + (deVoices.length === 1 ? '' : 's') + ' (' + allV.length + ' total)'),
+      sel,
+      h('div', { class: 'chips' }, showAllChip),
+      deVoices.length ? null : h('p', { class: 'sr-note' },
+        'No German voice detected. If you just installed one, fully close and reopen your browser, then tap “Refresh”. Note: on iPhone, Safari does not expose downloaded system voices to web apps.'));
 
     mount(h('div', { class: 'stack' },
       h('h1', { class: 'screen-title' }, '🔊 Audio settings'),
