@@ -206,8 +206,9 @@
     mount(h('div', { class: 'stack' },
       h('h1', { class: 'screen-title' }, 'Guten Tag! 👋'),
       h('p', { class: 'screen-sub' }, 'Pick a set to study. Verbs are a great place to start.'),
-      vocabTile,
       grid,
+      h('div', { class: 'spacer' }),
+      vocabTile,
       h('div', { class: 'spacer' }),
       h('button', { class: 'btn btn--ghost btn--block', onclick: confirmReset }, 'Reset all progress'),
       h('p', { class: 'sr-note center' }, 'Your progress is saved on this device only.')
