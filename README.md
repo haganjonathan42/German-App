@@ -40,10 +40,12 @@ computer's address instead, e.g. `http://192.168.1.20:8000` (same Wi‑Fi).
   screen and while you study, in Flashcards, Smart Review, and Browse.
 - Nouns always show the colour‑coded **article** (der = blue, die = pink,
   das = green) since that is part of the word itself.
-- **🔊 Pronunciation.** Tap the speaker next to any word or example sentence to
-  hear it spoken in German. Uses your device's built‑in text‑to‑speech, so it needs
-  no downloads and works offline. (If a browser has no German voice it falls back to
-  the default voice; the button hides on browsers with no speech support.)
+- **🔊 Pronunciation.** Tap the speaker next to any word to hear it in German. By
+  default it uses your device's built‑in text‑to‑speech (free, offline). For **natural
+  cloud‑quality audio that also plays in iPhone silent mode**, generate MP3s once with
+  Google Text‑to‑Speech — see **[AUDIO.md](AUDIO.md)**. The app automatically prefers
+  a recorded clip when it exists and falls back to the device voice otherwise. There's
+  also a **🔊 Audio settings** screen (home) to pick the voice and speed.
 
 ## Your progress
 

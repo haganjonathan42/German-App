@@ -89,9 +89,9 @@
       }
 
       // Build a prompt node; add a 🔊 button when the prompt word is German.
-      function qprompt(text, speakGermanText) {
+      function qprompt(text, germanEntry) {
         var node = A.h('div', { class: 'q-prompt' }, text);
-        if (speakGermanText && A.speechOK) node.appendChild(A.speakerButton(speakGermanText, 'spk--sm'));
+        if (germanEntry && A.canHear) node.appendChild(A.speakerButton(germanEntry.speakText, 'spk--sm', germanEntry.id));
         return node;
       }
 
@@ -111,7 +111,7 @@
           };
           box.appendChild(b);
         });
-        frame(qprompt(promptText, deToEn ? e.speakText : null), deToEn ? 'What does it mean?' : 'How do you say it in German?', box);
+        frame(qprompt(promptText, deToEn ? e : null), deToEn ? 'What does it mean?' : 'How do you say it in German?', box);
       }
 
       function askArticle(e) {
@@ -127,7 +127,7 @@
           };
           box.appendChild(b);
         });
-        frame(qprompt(e.noun, e.speakText), 'Which article? (' + cleanEn(e.english) + ')', box);
+        frame(qprompt(e.noun, e), 'Which article? (' + cleanEn(e.english) + ')', box);
       }
 
       function askType(e) {
@@ -146,7 +146,7 @@
           next(correct);
         }
         input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submit(); });
-        frame(qprompt(promptText, deToEn ? e.speakText : null), deToEn ? 'Type what it means' : 'Type it in German',
+        frame(qprompt(promptText, deToEn ? e : null), deToEn ? 'Type what it means' : 'Type it in German',
           A.h('div', { class: 'stack' }, input,
             A.h('button', { class: 'btn btn--primary btn--block', onclick: submit }, 'Check')));
         setTimeout(function () { input.focus(); }, 30);

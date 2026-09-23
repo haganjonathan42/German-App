@@ -79,11 +79,30 @@
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
-  // A small 🔊 button that speaks `text`; stops click from bubbling (e.g. card flip).
-  function speakerButton(text, cls) {
+  // Pre-recorded audio (from gen-audio.js). Played via an <audio> element so it
+  // uses the media channel — which, unlike speech synthesis, plays even when an
+  // iPhone is on silent. Falls back to the device voice when no file exists.
+  var AUDIO = window.AUDIO_MANIFEST || {};
+  var audioAvailable = Object.keys(AUDIO).length > 0;
+  var canHear = speechOK || audioAvailable;
+  function playWord(id, fallbackText) {
+    if (id && AUDIO[id] && typeof window.Audio !== 'undefined') {
+      try {
+        var a = new window.Audio('audio/' + id + '.mp3');
+        var p = a.play();
+        if (p && p.catch) p.catch(function () { speak(fallbackText); });
+        return;
+      } catch (e) {}
+    }
+    speak(fallbackText);
+  }
+
+  // A small 🔊 button. If given an `id` with a recorded clip it plays that,
+  // otherwise it speaks `text`. Stops click from bubbling (e.g. card flip).
+  function speakerButton(text, cls, id) {
     var b = h('button', { class: 'spk' + (cls ? ' ' + cls : ''), type: 'button',
       'aria-label': 'Hear pronunciation', title: 'Hear it' }, '🔊');
-    b.onclick = function (ev) { ev.stopPropagation(); speak(text); };
+    b.onclick = function (ev) { ev.stopPropagation(); if (id) playWord(id, text); else speak(text); };
     return b;
   }
 
@@ -94,9 +113,9 @@
     var node = e.article
       ? h('div', { class: cls }, articleNode(e.article), ' ', e.noun)
       : h('div', { class: cls }, e.germanDisplay);
-    if (speechOK) {
+    if (canHear) {
       node.appendChild(document.createTextNode(' '));
-      node.appendChild(speakerButton(e.speakText || e.germanDisplay));
+      node.appendChild(speakerButton(e.speakText || e.germanDisplay, null, e.id));
     }
     return node;
   }
@@ -173,7 +192,7 @@
   window.App = {
     h: h, mount: mount, shuffle: shuffle, scrollTop: scrollTop,
     germanNode: germanNode, articleNode: articleNode, examplesNode: examplesNode,
-    speak: speak, speakerButton: speakerButton, speechOK: speechOK,
+    speak: speak, speakerButton: speakerButton, speechOK: speechOK, canHear: canHear, playWord: playWord,
     conjugationTable: conjugationTable, progressBar: progressBar, statRow: statRow,
     home: showHome, setBack: setBack,
     settings: Settings, displayToggles: displayToggles
