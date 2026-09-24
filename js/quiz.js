@@ -56,36 +56,21 @@
       A.shuffle(queue);
       queue = queue.slice(0, Math.min(ROUND, queue.length));
 
-      var i = 0, score = 0;
-      ask();
+      // Per-question state so you can skip, go back, and review answers.
+      var results = queue.map(function () { return { answered: false, correct: null, chosen: null }; });
+      var mcCache = {}; // pos -> stable option list (so revisiting shows the same options)
+      var pos = 0;
+      render();
 
-      function ask() {
-        if (i >= queue.length) return finish();
-        var e = queue[i];
-        A.scrollTop();
-        if (style === 'article') return askArticle(e);
-        if (style === 'type') return askType(e);
-        return askMC(e);
-      }
-
-      function next(correct) {
-        window.SRS.record(queue[i].id, correct);
-        if (correct) score++;
-        i++;
-        setTimeout(ask, correct ? 550 : 1250);
-      }
-
-      function frame(promptNode, subText, body, feedbackId) {
-        A.mount(A.h('div', { class: 'stack' },
-          A.h('div', { class: 'scorebar' },
-            A.h('span', {}, 'Question ' + (i + 1) + ' / ' + queue.length),
-            A.h('span', {}, 'Score: ' + score)),
-          A.progressBar(i / queue.length),
-          promptNode,
-          subText ? A.h('p', { class: 'q-sub' }, subText) : A.h('div', {}),
-          body,
-          A.h('div', { class: 'feedback', id: feedbackId || 'fb' })
-        ));
+      function scoreSoFar() { var s = 0; results.forEach(function (r) { if (r.correct) s++; }); return s; }
+      function answeredCount() { var c = 0; results.forEach(function (r) { if (r.answered) c++; }); return c; }
+      function go(d) { var n = pos + d; if (n < 0 || n >= queue.length) return; pos = n; render(); }
+      function commit(correct, chosen) {
+        if (!results[pos].answered) {
+          results[pos] = { answered: true, correct: correct, chosen: chosen };
+          window.SRS.record(queue[pos].id, correct);
+        }
+        render();
       }
 
       // Build a prompt node; add a 🔊 button when the prompt word is German.
@@ -95,76 +80,109 @@
         return node;
       }
 
-      function askMC(e) {
-        var answerText = deToEn ? cleanEn(e.english) : e.germanDisplay;
-        var promptText = deToEn ? e.germanDisplay : cleanEn(e.english);
-        var opts = buildOptions(e, deToEn);
+      function renderMC(e, r, answerText) {
+        if (!mcCache[pos]) mcCache[pos] = buildOptions(e, deToEn);
         var box = A.h('div', { class: 'options' });
-        opts.forEach(function (opt) {
+        mcCache[pos].forEach(function (opt) {
           var b = A.h('button', { class: 'option' }, opt);
-          b.onclick = function () {
-            var correct = opt === answerText;
-            lockOptions(box, answerText);
-            b.classList.add(correct ? 'option--correct' : 'option--wrong');
-            fb(correct, answerText);
-            next(correct);
-          };
+          if (r.answered) {
+            b.disabled = true;
+            if (opt === answerText) b.classList.add('option--correct');
+            else if (opt === r.chosen) b.classList.add('option--wrong');
+          } else {
+            b.onclick = function () { commit(opt === answerText, opt); };
+          }
           box.appendChild(b);
         });
-        frame(qprompt(promptText, deToEn ? e : null), deToEn ? 'What does it mean?' : 'How do you say it in German?', box);
+        return box;
       }
 
-      function askArticle(e) {
+      function renderArticle(e, r) {
         var box = A.h('div', { class: 'options' });
         ['der', 'die', 'das'].forEach(function (art) {
           var b = A.h('button', { class: 'option art-' + art }, art);
-          b.onclick = function () {
-            var correct = art === e.article;
-            lockOptions(box, e.article);
-            b.classList.add(correct ? 'option--correct' : 'option--wrong');
-            fb(correct, e.article + ' ' + e.noun);
-            next(correct);
-          };
+          if (r.answered) {
+            b.disabled = true;
+            if (art === e.article) b.classList.add('option--correct');
+            else if (art === r.chosen) b.classList.add('option--wrong');
+          } else {
+            b.onclick = function () { commit(art === e.article, art); };
+          }
           box.appendChild(b);
         });
-        frame(qprompt(e.noun, e), 'Which article? (' + cleanEn(e.english) + ')', box);
+        return box;
       }
 
-      function askType(e) {
+      function renderType(e, r) {
+        if (r.answered) {
+          return A.h('div', { class: 'text-answer', style: 'opacity:.75' }, r.chosen || '(skipped)');
+        }
         var accepts = acceptable(e, deToEn ? 'en' : 'de');
-        var answerShown = deToEn ? cleanEn(e.english) : e.germanDisplay;
-        var promptText = deToEn ? e.germanDisplay : cleanEn(e.english);
         var input = A.h('input', { class: 'text-answer', type: 'text', autocomplete: 'off',
           autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false',
           placeholder: deToEn ? 'type the meaning…' : 'type the German…' });
-        var submitted = false;
-        function submit() {
-          if (submitted) return; submitted = true;
-          var correct = accepts.indexOf(norm(input.value)) !== -1;
-          input.disabled = true;
-          fb(correct, answerShown);
-          next(correct);
-        }
+        function submit() { commit(accepts.indexOf(norm(input.value)) !== -1, input.value.trim()); }
         input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submit(); });
-        frame(qprompt(promptText, deToEn ? e : null), deToEn ? 'Type what it means' : 'Type it in German',
-          A.h('div', { class: 'stack' }, input,
-            A.h('button', { class: 'btn btn--primary btn--block', onclick: submit }, 'Check')));
-        setTimeout(function () { input.focus(); }, 30);
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+        return A.h('div', { class: 'stack' }, input,
+          A.h('button', { class: 'btn btn--primary btn--block', onclick: submit }, 'Check'));
       }
 
-      function fb(correct, answer) {
-        var el = document.getElementById('fb');
-        if (!el) return;
-        el.className = 'feedback ' + (correct ? 'feedback--good' : 'feedback--bad');
-        el.textContent = correct ? '✓ Correct!' : '✗ Answer: ' + answer;
+      function render() {
+        A.scrollTop();
+        var e = queue[pos], r = results[pos];
+        var promptNode, sub, body, answerText;
+
+        if (style === 'article') {
+          promptNode = qprompt(e.noun, e);
+          sub = 'Which article? (' + cleanEn(e.english) + ')';
+          answerText = e.article + ' ' + e.noun;
+          body = renderArticle(e, r);
+        } else if (style === 'type') {
+          promptNode = qprompt(deToEn ? e.germanDisplay : cleanEn(e.english), deToEn ? e : null);
+          sub = deToEn ? 'Type what it means' : 'Type it in German';
+          answerText = deToEn ? cleanEn(e.english) : e.germanDisplay;
+          body = renderType(e, r);
+        } else {
+          answerText = deToEn ? cleanEn(e.english) : e.germanDisplay;
+          promptNode = qprompt(deToEn ? e.germanDisplay : cleanEn(e.english), deToEn ? e : null);
+          sub = deToEn ? 'What does it mean?' : 'How do you say it in German?';
+          body = renderMC(e, r, answerText);
+        }
+
+        var feedback = A.h('div', { class: 'feedback' });
+        if (r.answered) {
+          feedback.className = 'feedback ' + (r.correct ? 'feedback--good' : 'feedback--bad');
+          feedback.textContent = r.correct ? '✓ Correct!' : '✗ Answer: ' + answerText;
+        }
+
+        var last = pos === queue.length - 1;
+        var prevBtn = A.h('button', { class: 'btn', onclick: function () { go(-1); } }, '‹ Prev');
+        if (pos === 0) prevBtn.disabled = true;
+        var rightBtn = A.h('button', { class: 'btn btn--primary', onclick: function () { if (last) finish(); else go(1); } },
+          last ? 'Finish' : (r.answered ? 'Next ›' : 'Skip ›'));
+
+        A.mount(A.h('div', { class: 'stack' },
+          A.h('div', { class: 'scorebar' },
+            A.h('span', {}, 'Question ' + (pos + 1) + ' / ' + queue.length),
+            A.h('span', {}, 'Score: ' + scoreSoFar())),
+          A.progressBar((pos + (r.answered ? 1 : 0)) / queue.length),
+          promptNode,
+          A.h('p', { class: 'q-sub' }, sub),
+          body,
+          feedback,
+          A.h('div', { class: 'btn-row' }, prevBtn, rightBtn),
+          last ? null : A.h('button', { class: 'btn btn--ghost btn--block', onclick: finish }, 'Finish now')
+        ));
       }
 
       function finish() {
-        var pct = Math.round((score / queue.length) * 100);
+        var ans = answeredCount(), score = scoreSoFar(), skipped = queue.length - ans;
+        var pct = ans ? Math.round(score / ans * 100) : 0;
         A.mount(A.h('div', { class: 'stack center' },
           A.h('div', { class: 'big-emoji' }, pct >= 80 ? '🏆' : pct >= 50 ? '👍' : '💪'),
-          A.h('h2', { class: 'screen-title' }, 'You scored ' + score + ' / ' + queue.length),
-          A.h('p', { class: 'muted' }, pct + '% correct'),
+          A.h('h2', { class: 'screen-title' }, 'You got ' + score + ' of ' + ans + ' correct'),
+          A.h('p', { class: 'muted' }, (skipped ? skipped + ' skipped · ' : '') + pct + '% of answered'),
           A.h('div', { class: 'btn-row' },
             A.h('button', { class: 'btn btn--primary', onclick: run }, 'New round'),
             A.h('button', { class: 'btn', onclick: setup }, 'Change settings'),
