@@ -90,9 +90,10 @@
     return set;
   };
 
-  // "Do another 10": a mix of the category's still-learning words plus the
-  // words practised in today's set (that aren't mastered yet).
-  D.extraSet = function (catKey, items) {
+  // The quiz pool: a random mix of the category's still-learning words plus
+  // today's set words (that aren't mastered yet). Up to 10, so each test blends
+  // new words with older "reinforce" words.
+  D.mixSet = function (catKey, items) {
     var r = rec(catKey);
     var map = byId(items);
     var seen = {};

@@ -194,7 +194,7 @@
           A.h('div', { class: 'btn-row' },
             primary,
             A.h('button', { class: 'btn', onclick: setup }, 'Change settings'),
-            A.h('button', { class: 'btn', onclick: ctx.onExit }, 'Back to modes'))
+            A.h('button', { class: 'btn', onclick: ctx.onExit }, ctx.exitLabel || 'Back to modes'))
         ));
       }
     }

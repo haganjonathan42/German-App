@@ -561,11 +561,12 @@
     });
   }
 
-  // Daily 10: today's fixed set for a category (skips mastered words, stays put
-  // all day). Progressive: first study the words as flip cards, then the last
-  // card auto-starts a quiz on those same words. Completing all 10 counts toward
-  // a per-category 🔥 streak, then offers a bonus set mixing your still-learning
-  // and today's words.
+  // Daily 10: today's set for a category (skips mastered words, stays put all
+  // day). Progressive: first study today's words as flip cards, then the last
+  // card auto-starts a quiz. Each quiz is a random 10 mixing today's words with
+  // your still-learning ("reinforce") words, so old words keep coming back.
+  // Completing a quiz counts toward a per-category 🔥 streak (first one of the
+  // day), then you can end or start another test (a fresh random 10).
   function launchDaily(catKey) {
     var c = catByKey(catKey);
     var items = itemsIn(c.cats);
@@ -583,50 +584,23 @@
       return;
     }
 
-    // Study phase: flip through today's cards, then auto-start the quiz on the
-    // same set (captured here so it can't drift).
+    // Study phase: flip through today's cards, then auto-start the quiz.
     window.Modes.flashcards({
       items: set,
       title: c.title + ' · Daily 10',
       onExit: onExit,
-      onComplete: function () { launchDailyQuiz(catKey, c, items, set); }
+      onComplete: function () { launchDailyQuiz(catKey, c, items); }
     });
   }
 
-  // Test phase of the daily set: quiz the words just studied.
-  function launchDailyQuiz(catKey, c, items, set) {
+  // Test phase: a random 10 mixed from today's words + still-learning words.
+  // "Start another test" loops back here for a fresh random 10.
+  function launchDailyQuiz(catKey, c, items) {
     var onExit = function () { showModes(catKey); };
     setBack(onExit);
     scrollTop();
 
-    var streak = Daily.streak(catKey);
-    window.Modes.quiz({
-      items: set,
-      pool: set,
-      padPool: items,
-      round: 10,
-      title: c.title,
-      titleSuffix: 'Daily 10',
-      subtitle: 'Now test yourself on today’s ' + set.length + ' word' + (set.length === 1 ? '' : 's') +
-        (streak ? ' · 🔥 ' + streak + '-day streak' : '') +
-        '. Finish them all to keep your streak going.',
-      startLabel: 'Start quiz',
-      onExit: onExit,
-      onComplete: function (r) { if (r.answered >= r.total) Daily.markComplete(catKey); },
-      finishPrimary: { label: 'Do another 10', onClick: function () { launchDailyExtra(catKey); } }
-    });
-  }
-
-  // Bonus round after the daily set: a mix of the category's still-learning
-  // words and the words practised today. Does not affect the streak.
-  function launchDailyExtra(catKey) {
-    var c = catByKey(catKey);
-    var items = itemsIn(c.cats);
-    var onExit = function () { showModes(catKey); };
-    setBack(onExit);
-    scrollTop();
-
-    var set = Daily.extraSet(catKey, items);
+    var set = Daily.mixSet(catKey, items);
     if (set.length === 0) {
       mount(h('div', { class: 'stack center' },
         h('div', { class: 'big-emoji' }, '✅'),
@@ -636,17 +610,22 @@
       return;
     }
 
+    var streak = Daily.streak(catKey);
     window.Modes.quiz({
       items: set,
       pool: set,
       padPool: items,
       round: 10,
       title: c.title,
-      titleSuffix: 'Daily 10 · bonus',
-      subtitle: 'A mix of your still-learning words and the ones you practised today.',
-      startLabel: 'Start bonus round',
+      titleSuffix: 'Daily 10',
+      subtitle: set.length + ' word' + (set.length === 1 ? '' : 's') +
+        ' — a mix of today’s words and ones you’re still learning' +
+        (streak ? ' · 🔥 ' + streak + '-day streak' : '') + '.',
+      startLabel: 'Start quiz',
       onExit: onExit,
-      finishPrimary: { label: 'Do another 10', onClick: function () { launchDailyExtra(catKey); } }
+      exitLabel: 'End',
+      onComplete: function (r) { if (r.answered >= r.total) Daily.markComplete(catKey); },
+      finishPrimary: { label: 'Start another test', onClick: function () { launchDailyQuiz(catKey, c, items); } }
     });
   }
 
