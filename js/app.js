@@ -258,8 +258,8 @@
   function catByKey(k) { for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].key === k) return CATEGORIES[i]; }
 
   var MODES = [
-    { key: 'daily', title: 'Daily 10', emoji: '📆', desc: 'Your 10 words for today' },
     { key: 'flashcards', title: 'Flashcards', emoji: '🃏', desc: 'Flip cards and mark what you know' },
+    { key: 'daily', title: 'Daily 10', emoji: '📆', desc: 'Your 10 words for today' },
     { key: 'quiz', title: 'Quiz', emoji: '❓', desc: 'Multiple choice, typing, or der/die/das' },
     { key: 'review', title: 'Smart Review', emoji: '🧠', desc: 'Spaced repetition — practises weak words' },
     { key: 'reinforce', title: 'Reinforce', emoji: '🔁', desc: "Quiz your ‘still learning’ words (random 10)" },
@@ -574,6 +574,9 @@
     setBack(onExit);
     scrollTop();
 
+    // Already studied today's cards? Skip the study phase and go to the quiz.
+    if (Daily.hasStudiedToday(catKey)) return launchDailyQuiz(catKey, c, items);
+
     var set = Daily.getSet(catKey, items);
     if (set.length === 0) {
       mount(h('div', { class: 'stack center' },
@@ -589,7 +592,7 @@
       items: set,
       title: c.title + ' · Daily 10',
       onExit: onExit,
-      onComplete: function () { launchDailyQuiz(catKey, c, items); }
+      onComplete: function () { Daily.markStudied(catKey); launchDailyQuiz(catKey, c, items); }
     });
   }
 

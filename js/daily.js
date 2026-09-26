@@ -124,4 +124,14 @@
   D.streak = function (catKey) { return rec(catKey).streak || 0; };
   D.isDoneToday = function (catKey) { return rec(catKey).lastCompleted === D.today(); };
 
+  // Record that today's flip-card study phase has been finished, so re-opening
+  // the daily set the same day can skip straight to the quiz.
+  D.markStudied = function (catKey) {
+    var r = rec(catKey);
+    r.studied = D.today();
+    store[catKey] = r;
+    save();
+  };
+  D.hasStudiedToday = function (catKey) { return rec(catKey).studied === D.today(); };
+
 })(window.Daily = window.Daily || {});
