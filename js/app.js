@@ -574,8 +574,10 @@
     setBack(onExit);
     scrollTop();
 
-    // Already studied today's cards? Skip the study phase and go to the quiz.
-    if (Daily.hasStudiedToday(catKey)) return launchDailyQuiz(catKey, c, items);
+    // Already studied (or fully completed) today's set? Skip the study phase
+    // and go straight to the quiz. isDoneToday covers sets finished before the
+    // studied-flag existed, so the tile's "done today" always matches this.
+    if (Daily.hasStudiedToday(catKey) || Daily.isDoneToday(catKey)) return launchDailyQuiz(catKey, c, items);
 
     var set = Daily.getSet(catKey, items);
     if (set.length === 0) {
