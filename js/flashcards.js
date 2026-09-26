@@ -21,7 +21,11 @@
     function advance() {
       flipped = false;
       pos++;
-      if (pos >= order.length) { done(); return; }
+      if (pos >= order.length) {
+        if (ctx.onComplete) ctx.onComplete();
+        else done();
+        return;
+      }
       render();
     }
 

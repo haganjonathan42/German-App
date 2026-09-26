@@ -562,8 +562,10 @@
   }
 
   // Daily 10: today's fixed set for a category (skips mastered words, stays put
-  // all day). Completing all 10 counts toward a per-category 🔥 streak, then
-  // offers a bonus set mixing your still-learning and today's words.
+  // all day). Progressive: first study the words as flip cards, then the last
+  // card auto-starts a quiz on those same words. Completing all 10 counts toward
+  // a per-category 🔥 streak, then offers a bonus set mixing your still-learning
+  // and today's words.
   function launchDaily(catKey) {
     var c = catByKey(catKey);
     var items = itemsIn(c.cats);
@@ -581,6 +583,22 @@
       return;
     }
 
+    // Study phase: flip through today's cards, then auto-start the quiz on the
+    // same set (captured here so it can't drift).
+    window.Modes.flashcards({
+      items: set,
+      title: c.title + ' · Daily 10',
+      onExit: onExit,
+      onComplete: function () { launchDailyQuiz(catKey, c, items, set); }
+    });
+  }
+
+  // Test phase of the daily set: quiz the words just studied.
+  function launchDailyQuiz(catKey, c, items, set) {
+    var onExit = function () { showModes(catKey); };
+    setBack(onExit);
+    scrollTop();
+
     var streak = Daily.streak(catKey);
     window.Modes.quiz({
       items: set,
@@ -589,10 +607,10 @@
       round: 10,
       title: c.title,
       titleSuffix: 'Daily 10',
-      subtitle: 'Today’s ' + set.length + ' word' + (set.length === 1 ? '' : 's') +
+      subtitle: 'Now test yourself on today’s ' + set.length + ' word' + (set.length === 1 ? '' : 's') +
         (streak ? ' · 🔥 ' + streak + '-day streak' : '') +
         '. Finish them all to keep your streak going.',
-      startLabel: 'Start today’s 10',
+      startLabel: 'Start quiz',
       onExit: onExit,
       onComplete: function (r) { if (r.answered >= r.total) Daily.markComplete(catKey); },
       finishPrimary: { label: 'Do another 10', onClick: function () { launchDailyExtra(catKey); } }
