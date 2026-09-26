@@ -4,7 +4,7 @@
    ============================================================ */
 (function () {
   'use strict';
-  var G = window.German, SRS = window.SRS;
+  var G = window.German, SRS = window.SRS, Daily = window.Daily;
   var appEl = document.getElementById('app');
 
   /* ---------- tiny DOM helper ---------- */
@@ -258,6 +258,7 @@
   function catByKey(k) { for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].key === k) return CATEGORIES[i]; }
 
   var MODES = [
+    { key: 'daily', title: 'Daily 10', emoji: '📆', desc: 'Your 10 words for today' },
     { key: 'flashcards', title: 'Flashcards', emoji: '🃏', desc: 'Flip cards and mark what you know' },
     { key: 'quiz', title: 'Quiz', emoji: '❓', desc: 'Multiple choice, typing, or der/die/das' },
     { key: 'review', title: 'Smart Review', emoji: '🧠', desc: 'Spaced repetition — practises weak words' },
@@ -282,14 +283,17 @@
     CATEGORIES.forEach(function (c) {
       var items = itemsIn(c.cats);
       var st = SRS.stats(items);
+      var streak = Daily.streak(c.key);
       grid.appendChild(h('button', { class: 'tile', onclick: function () { showModes(c.key); } },
         h('div', { class: 'tile__emoji' }, c.emoji),
         h('div', { class: 'tile__body' },
           h('div', { class: 'tile__title' }, c.title),
           h('div', { class: 'tile__desc' }, items.length + ' words')),
-        h('div', { class: 'tile__meta' }, st.mastered > 0
-          ? h('span', { class: 'pill pill--done' }, st.mastered + ' mastered')
-          : h('span', { class: 'pill' }, 'start'))
+        h('div', { class: 'tile__meta' },
+          st.mastered > 0
+            ? h('span', { class: 'pill pill--done' }, st.mastered + ' mastered')
+            : h('span', { class: 'pill' }, 'start'),
+          streak ? h('span', { class: 'pill pill--streak' }, '🔥 ' + streak) : null)
       ));
     });
 
@@ -327,12 +331,16 @@
       var meta = '';
       if (m.key === 'review') meta = st.due + ' due';
       else if (m.key === 'reinforce') meta = st.learning + ' learning';
+      else if (m.key === 'daily') meta = Daily.isDoneToday(catKey) ? '✅ done today' : 'today';
+      var streak = m.key === 'daily' ? Daily.streak(catKey) : 0;
       grid.appendChild(h('button', { class: 'tile', onclick: function () { launch(m.key, c, items); } },
         h('div', { class: 'tile__emoji' }, m.emoji),
         h('div', { class: 'tile__body' },
           h('div', { class: 'tile__title' }, m.title),
           h('div', { class: 'tile__desc' }, m.desc)),
-        meta ? h('div', { class: 'tile__meta' }, h('span', { class: 'pill' }, meta)) : null
+        (meta || streak) ? h('div', { class: 'tile__meta' },
+          meta ? h('span', { class: 'pill' }, meta) : null,
+          streak ? h('span', { class: 'pill pill--streak' }, '🔥 ' + streak) : null) : null
       ));
     });
 
@@ -510,6 +518,7 @@
   }
 
   function launch(modeKey, cat, items) {
+    if (modeKey === 'daily') return launchDaily(cat.key);
     if (modeKey === 'reinforce') return launchReinforce(cat, items);
     var ctx = {
       items: items,
@@ -549,6 +558,77 @@
         ' you’re still learning. Get them right to move them toward “known”.',
       startLabel: 'Start review',
       onExit: onExit
+    });
+  }
+
+  // Daily 10: today's fixed set for a category (skips mastered words, stays put
+  // all day). Completing all 10 counts toward a per-category 🔥 streak, then
+  // offers a bonus set mixing your still-learning and today's words.
+  function launchDaily(catKey) {
+    var c = catByKey(catKey);
+    var items = itemsIn(c.cats);
+    var onExit = function () { showModes(catKey); };
+    setBack(onExit);
+    scrollTop();
+
+    var set = Daily.getSet(catKey, items);
+    if (set.length === 0) {
+      mount(h('div', { class: 'stack center' },
+        h('div', { class: 'big-emoji' }, '🎉'),
+        h('h2', { class: 'screen-title' }, 'All caught up in ' + c.title + '!'),
+        h('p', { class: 'muted' }, 'You’ve mastered every word here. Come back after adding new words or resetting some progress.'),
+        h('button', { class: 'btn btn--primary', onclick: onExit }, 'Back to modes')));
+      return;
+    }
+
+    var streak = Daily.streak(catKey);
+    window.Modes.quiz({
+      items: set,
+      pool: set,
+      padPool: items,
+      round: 10,
+      title: c.title,
+      titleSuffix: 'Daily 10',
+      subtitle: 'Today’s ' + set.length + ' word' + (set.length === 1 ? '' : 's') +
+        (streak ? ' · 🔥 ' + streak + '-day streak' : '') +
+        '. Finish them all to keep your streak going.',
+      startLabel: 'Start today’s 10',
+      onExit: onExit,
+      onComplete: function (r) { if (r.answered >= r.total) Daily.markComplete(catKey); },
+      finishPrimary: { label: 'Do another 10', onClick: function () { launchDailyExtra(catKey); } }
+    });
+  }
+
+  // Bonus round after the daily set: a mix of the category's still-learning
+  // words and the words practised today. Does not affect the streak.
+  function launchDailyExtra(catKey) {
+    var c = catByKey(catKey);
+    var items = itemsIn(c.cats);
+    var onExit = function () { showModes(catKey); };
+    setBack(onExit);
+    scrollTop();
+
+    var set = Daily.extraSet(catKey, items);
+    if (set.length === 0) {
+      mount(h('div', { class: 'stack center' },
+        h('div', { class: 'big-emoji' }, '✅'),
+        h('h2', { class: 'screen-title' }, 'Nothing left to practise'),
+        h('p', { class: 'muted' }, 'You’ve mastered all your ' + c.title.toLowerCase() + ' for now. See you tomorrow!'),
+        h('button', { class: 'btn btn--primary', onclick: onExit }, 'Back to modes')));
+      return;
+    }
+
+    window.Modes.quiz({
+      items: set,
+      pool: set,
+      padPool: items,
+      round: 10,
+      title: c.title,
+      titleSuffix: 'Daily 10 · bonus',
+      subtitle: 'A mix of your still-learning words and the ones you practised today.',
+      startLabel: 'Start bonus round',
+      onExit: onExit,
+      finishPrimary: { label: 'Do another 10', onClick: function () { launchDailyExtra(catKey); } }
     });
   }
 

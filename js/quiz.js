@@ -176,15 +176,23 @@
         ));
       }
 
+      var completeFired = false;
       function finish() {
         var ans = answeredCount(), score = scoreSoFar(), skipped = queue.length - ans;
         var pct = ans ? Math.round(score / ans * 100) : 0;
+        if (!completeFired && ctx.onComplete) {
+          completeFired = true;
+          try { ctx.onComplete({ score: score, answered: ans, total: queue.length }); } catch (e) {}
+        }
+        var primary = ctx.finishPrimary
+          ? A.h('button', { class: 'btn btn--primary', onclick: ctx.finishPrimary.onClick }, ctx.finishPrimary.label)
+          : A.h('button', { class: 'btn btn--primary', onclick: run }, 'New round');
         A.mount(A.h('div', { class: 'stack center' },
           A.h('div', { class: 'big-emoji' }, pct >= 80 ? '🏆' : pct >= 50 ? '👍' : '💪'),
           A.h('h2', { class: 'screen-title' }, 'You got ' + score + ' of ' + ans + ' correct'),
           A.h('p', { class: 'muted' }, (skipped ? skipped + ' skipped · ' : '') + pct + '% of answered'),
           A.h('div', { class: 'btn-row' },
-            A.h('button', { class: 'btn btn--primary', onclick: run }, 'New round'),
+            primary,
             A.h('button', { class: 'btn', onclick: setup }, 'Change settings'),
             A.h('button', { class: 'btn', onclick: ctx.onExit }, 'Back to modes'))
         ));
